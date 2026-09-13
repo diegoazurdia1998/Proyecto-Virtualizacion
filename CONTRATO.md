@@ -26,7 +26,8 @@ cada pedido.
 | Nombre | Carné | Rol |
 |---|---|---|
 | Oscar Javier Ortíz Pocón | 1182222 | Datos y Persistencia |
-| Diego Andrés Azurdia Ortíz | 2528119 | PENDIENTE |
+| Diego Andrés Azurdia Ortíz | 2528119 | Backend de 
+Dominio |
 | Diego Oswaldo Orellana Morales | 1163722 | PENDIENTE |
 | Susana Paola García García | 1224323 | PENDIENTE |
 | Rochelle Giulianne Esquivel Vargas | 1283220 | PENDIENTE |
