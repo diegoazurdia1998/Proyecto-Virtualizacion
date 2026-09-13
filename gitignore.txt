@@ -1,0 +1,23 @@
+# Secretos
+.env
+*.env
+!.env.example
+
+# Python / Flask
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+
+# Node / Vue
+node_modules/
+dist/
+.vite/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Editores
+.vscode/
+.idea/
