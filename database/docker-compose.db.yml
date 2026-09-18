@@ -1,0 +1,27 @@
+# Compose de prueba SOLO para la base de datos.
+# Sirve para levantar Postgres por separado y validar init/ sin esperar al
+# docker-compose.yml integrador del proyecto (que lo arma Susana).
+# Se corre desde la raíz del repo:
+#   docker compose -f database/docker-compose.db.yml up -d
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: elquetzal-db-1182222
+    env_file: ../.env
+    environment:
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./init:/docker-entrypoint-initdb.d:ro
+      - elquetzal-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  elquetzal-pgdata:
+    name: elquetzal-pgdata
