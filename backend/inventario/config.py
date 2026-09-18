@@ -5,4 +5,4 @@ class Config:
     DB_PORT = os.getenv("DB_PORT", "5432")
     DB_NAME = os.getenv("DB_NAME", "db_inventario")
     DB_USER = os.getenv("DB_USER", "usr_inventario")
-    DB_PASSWORD = os.getenv("DB_PASSWORD", "")
+    DB_PASSWORD = os.getenv("DB_PASSWORD", "inv_pass123")
