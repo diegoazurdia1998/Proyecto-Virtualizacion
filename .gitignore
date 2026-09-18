@@ -2,6 +2,11 @@
 .env
 *.env
 !.env.example
+# Archivos temporales para funcionalidad individual
+docker-compose.dev.yml
+dev-init-db.sql
+*.dev.sql
+diego/
 
 # Python / Flask
 __pycache__/
