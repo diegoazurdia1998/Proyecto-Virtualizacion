@@ -1,0 +1,195 @@
+services:
+  # -------------------------------------------------------------------
+  # MOTOR ÚNICO DE BASE DE DATOS POSTGRESQL (Rol 2)
+  # -------------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: elquetzal-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: ${POSTGRES_HOST:-db}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      CATALOGO_DB: ${CATALOGO_DB}
+      CATALOGO_DB_USER: ${CATALOGO_DB_USER}
+      CATALOGO_DB_PASSWORD: ${CATALOGO_DB_PASSWORD}
+      INVENTARIO_DB: ${INVENTARIO_DB}
+      INVENTARIO_DB_USER: ${INVENTARIO_DB_USER}
+      INVENTARIO_DB_PASSWORD: ${INVENTARIO_DB_PASSWORD}
+      CLIENTES_DB: ${CLIENTES_DB}
+      CLIENTES_DB_USER: ${CLIENTES_DB_USER}
+      CLIENTES_DB_PASSWORD: ${CLIENTES_DB_PASSWORD}
+      PEDIDOS_DB: ${PEDIDOS_DB}
+      PEDIDOS_DB_USER: ${PEDIDOS_DB_USER}
+      PEDIDOS_DB_PASSWORD: ${PEDIDOS_DB_PASSWORD}
+      REPORTES_DB: ${REPORTES_DB}
+      REPORTES_DB_USER: ${REPORTES_DB_USER}
+      REPORTES_DB_PASSWORD: ${REPORTES_DB_PASSWORD}
+    volumes:
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+      - elquetzal-pgdata:/var/lib/postgresql/data
+    networks:
+      - elquetzal-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # -------------------------------------------------------------------
+  # MICROSERVICIO CATÁLOGO (Rol 3)
+  # -------------------------------------------------------------------
+  api-catalogo:
+    build:
+      context: ./backend/catalogo
+      dockerfile: Dockerfile
+    image: ${DOCKERHUB_NAMESPACE:-virtual4insanity}/elquetzal-catalogo:1.0
+    container_name: elquetzal-api-catalogo
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: ${POSTGRES_PORT:-5432}
+      DB_NAME: ${CATALOGO_DB}
+      DB_USER: ${CATALOGO_DB_USER}
+      DB_PASSWORD: ${CATALOGO_DB_PASSWORD}
+      FLASK_ENV: ${FLASK_ENV:-production}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - elquetzal-net
+
+  # -------------------------------------------------------------------
+  # MICROSERVICIO INVENTARIO (Rol 3)
+  # -------------------------------------------------------------------
+  api-inventario:
+    build:
+      context: ./backend/inventario
+      dockerfile: Dockerfile
+    image: ${DOCKERHUB_NAMESPACE:-virtual4insanity}/elquetzal-inventario:1.0
+    container_name: elquetzal-api-inventario
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: ${POSTGRES_PORT:-5432}
+      DB_NAME: ${INVENTARIO_DB}
+      DB_USER: ${INVENTARIO_DB_USER}
+      DB_PASSWORD: ${INVENTARIO_DB_PASSWORD}
+      FLASK_ENV: ${FLASK_ENV:-production}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - elquetzal-net
+
+  # -------------------------------------------------------------------
+  # MICROSERVICIO CLIENTES (Rol 3)
+  # -------------------------------------------------------------------
+  api-clientes:
+    build:
+      context: ./backend/clientes
+      dockerfile: Dockerfile
+    image: ${DOCKERHUB_NAMESPACE:-virtual4insanity}/elquetzal-clientes:1.0
+    container_name: elquetzal-api-clientes
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: ${POSTGRES_PORT:-5432}
+      DB_NAME: ${CLIENTES_DB}
+      DB_USER: ${CLIENTES_DB_USER}
+      DB_PASSWORD: ${CLIENTES_DB_PASSWORD}
+      FLASK_ENV: ${FLASK_ENV:-production}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - elquetzal-net
+
+  # -------------------------------------------------------------------
+  # MICROSERVICIO PEDIDOS (Rol 3)
+  # -------------------------------------------------------------------
+  api-pedidos:
+    build:
+      context: ./backend/pedidos
+      dockerfile: Dockerfile
+    image: ${DOCKERHUB_NAMESPACE:-virtual4insanity}/elquetzal-pedidos:1.0
+    container_name: elquetzal-api-pedidos
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: ${POSTGRES_PORT:-5432}
+      DB_NAME: ${PEDIDOS_DB}
+      DB_USER: ${PEDIDOS_DB_USER}
+      DB_PASSWORD: ${PEDIDOS_DB_PASSWORD}
+      INVENTARIO_SERVICE_URL: http://api-inventario:5000
+      FLASK_ENV: ${FLASK_ENV:-production}
+    depends_on:
+      db:
+        condition: service_healthy
+      api-inventario:
+        condition: service_started
+    networks:
+      - elquetzal-net
+
+  # -------------------------------------------------------------------
+  # MICROSERVICIO REPORTES (Rol 3)
+  # -------------------------------------------------------------------
+  api-reportes:
+    build:
+      context: ./backend/reportes
+      dockerfile: Dockerfile
+    image: ${DOCKERHUB_NAMESPACE:-virtual4insanity}/elquetzal-reportes:1.0
+    container_name: elquetzal-api-reportes
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: ${POSTGRES_PORT:-5432}
+      DB_NAME: ${REPORTES_DB}
+      DB_USER: ${REPORTES_DB_USER}
+      DB_PASSWORD: ${REPORTES_DB_PASSWORD}
+      INVENTARIO_SERVICE_URL: http://api-inventario:5000
+      PEDIDOS_SERVICE_URL: http://api-pedidos:5000
+      FLASK_ENV: ${FLASK_ENV:-production}
+    depends_on:
+      db:
+        condition: service_healthy
+      api-inventario:
+        condition: service_started
+      api-pedidos:
+        condition: service_started
+    networks:
+      - elquetzal-net
+
+  # -------------------------------------------------------------------
+  # GATEWAY NGINX + FRONTEND VUE (Rol 1 - Pendiente de entrega)
+  # -------------------------------------------------------------------
+  # Se deja preparado para cuando el Rol 1 entregue gateway/nginx.conf y gateway/Dockerfile.
+  # gateway:
+  #   build:
+  #     context: ./gateway
+  #     dockerfile: Dockerfile
+  #   image: ${DOCKERHUB_NAMESPACE:-virtual4insanity}/elquetzal-gateway:1.0
+  #   container_name: elquetzal-gateway
+  #   restart: unless-stopped
+  #   ports:
+  #     - "${GATEWAY_PUERTO_HOST:-8080}:80"
+  #   environment:
+  #     - HOSTNAME_VM=${HOSTNAME_VM}
+  #   depends_on:
+  #     - api-catalogo
+  #     - api-inventario
+  #     - api-clientes
+  #     - api-pedidos
+  #     - api-reportes
+  #   networks:
+  #     - elquetzal-net
+
+networks:
+  elquetzal-net:
+    name: elquetzal-net
+    driver: bridge
+
+volumes:
+  elquetzal-pgdata:
+    name: elquetzal-pgdata
