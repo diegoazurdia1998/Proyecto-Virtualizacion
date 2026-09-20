@@ -1,18 +1,16 @@
 from flask import Flask, jsonify, request
-from datetime import datetime
+import requests
+from config import Config
+from db import Database
 
 app = Flask(__name__)
-
-MOCK_PEDIDOS = [
-    {
-        "pedido_id": 1,
-        "carne": "2528119",
-        "cliente_id": 1,
-        "fecha": "2026-09-15T10:30:00",
-        "total": 91.00,
-        "estado": "CONFIRMADO"
-    }
-]
+db = Database(
+    host=Config.DB_HOST,
+    port=Config.DB_PORT,
+    dbname=Config.DB_NAME,
+    user=Config.DB_USER,
+    password=Config.DB_PASSWORD
+)
 
 @app.route('/health', methods=['GET'])
 def health():
@@ -20,7 +18,23 @@ def health():
 
 @app.route('/pedidos', methods=['GET'])
 def get_pedidos():
-    return jsonify(MOCK_PEDIDOS), 200
+    # Usamos creado_en AS fecha para respetar el contrato JSON
+    query = """
+        SELECT id AS pedido_id, carne, cliente_id, creado_en AS fecha, total::float, estado 
+        FROM pedidos 
+        ORDER BY id DESC;
+    """
+    try:
+        with db.get_cursor() as cur:
+            cur.execute(query)
+            pedidos = cur.fetchall()
+            for p in pedidos:
+                if p.get("fecha"):
+                    p["fecha"] = p["fecha"].isoformat()
+            return jsonify(pedidos), 200
+    except Exception as e:
+        return jsonify({"error": "error_db", "detalle": str(e)}), 500
+
 
 @app.route('/pedidos', methods=['POST'])
 def create_pedido():
@@ -29,28 +43,64 @@ def create_pedido():
     cliente_id = data.get("cliente_id")
     items = data.get("items", [])
 
-    if not carne or not items:
-        return jsonify({"error": "datos_incompletos"}), 400
+    if not carne or not cliente_id or not items:
+        return jsonify({"error": "datos_incompletos", "mensaje": "carne, cliente_id e items son obligatorios"}), 400
 
-    # Simulación de validación de stock según el contrato (Fase 1: Mock)
-    for item in items:
-        if item.get("sku") == "QTZ-007" and item.get("cantidad", 0) > 2:
-            return jsonify({
-                "error": "stock_insuficiente",
-                "detalle": [
-                    {"sku": "QTZ-007", "solicitado": item.get("cantidad"), "disponible": 2}
-                ]
-            }), 409
+    # 1. Validación y descuento atómico vía HTTP al microservicio de inventario
+    url_inventario = f"{Config.INVENTARIO_SERVICE_URL}/descontar-stock"
+    try:
+        resp_inv = requests.post(url_inventario, json={"items": items}, timeout=10)
+    except requests.exceptions.RequestException as e:
+        return jsonify({"error": "servicio_inventario_no_disponible", "detalle": str(e)}), 503
 
-    nuevo_pedido = {
-        "pedido_id": len(MOCK_PEDIDOS) + 1,
-        "carne": str(carne),
-        "fecha": datetime.now().isoformat(timespec='seconds'),
-        "total": 136.50,
-        "estado": "CONFIRMADO"
-    }
-    MOCK_PEDIDOS.append(nuevo_pedido)
-    return jsonify(nuevo_pedido), 201
+    if resp_inv.status_code != 200:
+        return jsonify(resp_inv.json()), resp_inv.status_code
+
+    datos_inventario = resp_inv.json()
+    total_pedido = datos_inventario.get("total", 0.0)
+    items_procesados = datos_inventario.get("items_procesados", [])
+
+    # 2. Insertar cabecera usando creado_en (DEFAULT NOW())
+    query_pedido = """
+        INSERT INTO pedidos (carne, cliente_id, total, estado)
+        VALUES (%s, %s, %s, 'CONFIRMADO')
+        RETURNING id, carne, creado_en, total::float, estado;
+    """
+    query_detalle = """
+        INSERT INTO pedido_detalle (pedido_id, sku, cantidad, precio_unitario, subtotal)
+        VALUES (%s, %s, %s, %s, %s);
+    """
+
+    with db.get_connection() as conn:
+        try:
+            with conn.cursor() as cur:
+                cur.execute(query_pedido, (str(carne), cliente_id, total_pedido))
+                pedido_creado = cur.fetchone()
+                pedido_id = pedido_creado[0]
+                fecha_pedido = pedido_creado[2].isoformat()
+
+                for item in items_procesados:
+                    cur.execute(query_detalle, (
+                        pedido_id,
+                        item["sku"],
+                        item["cantidad"],
+                        item["precio"],
+                        item["subtotal"]
+                    ))
+
+                conn.commit()
+
+                return jsonify({
+                    "pedido_id": pedido_id,
+                    "carne": str(carne),
+                    "fecha": fecha_pedido,
+                    "total": total_pedido,
+                    "estado": "CONFIRMADO"
+                }), 201
+
+        except Exception as e:
+            conn.rollback()
+            return jsonify({"error": "error_guardando_pedido", "detalle": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

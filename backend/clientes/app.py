@@ -1,12 +1,15 @@
 from flask import Flask, jsonify, request
+from config import Config
+from db import Database
 
 app = Flask(__name__)
-
-MOCK_CLIENTES = [
-    {"id": 1, "nombre": "Tienda La Bendición", "nit": "1234567-8", "direccion": "Zona 1, Ciudad de Guatemala"},
-    {"id": 2, "nombre": "Abarrotes El Triunfo", "nit": "8765432-1", "direccion": "Zona 11, Ciudad de Guatemala"},
-    {"id": 3, "nombre": "Minisuper Express", "nit": "9988776-5", "direccion": "Mixco, Guatemala"}
-]
+db = Database(
+    host=Config.DB_HOST,
+    port=Config.DB_PORT,
+    dbname=Config.DB_NAME,
+    user=Config.DB_USER,
+    password=Config.DB_PASSWORD
+)
 
 @app.route('/health', methods=['GET'])
 def health():
@@ -14,19 +17,37 @@ def health():
 
 @app.route('/clientes', methods=['GET'])
 def get_clientes():
-    return jsonify(MOCK_CLIENTES), 200
+    query = "SELECT id, nombre, nit, direccion FROM clientes ORDER BY id ASC;"
+    try:
+        with db.get_cursor() as cur:
+            cur.execute(query)
+            clientes = cur.fetchall()
+            return jsonify(clientes), 200
+    except Exception as e:
+        return jsonify({"error": "Error al consultar clientes", "detalle": str(e)}), 500
 
 @app.route('/clientes', methods=['POST'])
 def create_cliente():
     data = request.get_json() or {}
-    nuevo = {
-        "id": len(MOCK_CLIENTES) + 1,
-        "nombre": data.get("nombre", ""),
-        "nit": data.get("nit", ""),
-        "direccion": data.get("direccion", "")
-    }
-    MOCK_CLIENTES.append(nuevo)
-    return jsonify(nuevo), 201
+    nombre = data.get("nombre")
+    nit = data.get("nit")
+    direccion = data.get("direccion")
+
+    if not nombre or not nit or not direccion:
+        return jsonify({"error": "campos_requeridos", "mensaje": "nombre, nit y direccion son obligatorios"}), 400
+
+    query = """
+        INSERT INTO clientes (nombre, nit, direccion)
+        VALUES (%s, %s, %s)
+        RETURNING id, nombre, nit, direccion;
+    """
+    try:
+        with db.get_cursor(commit=True) as cur:
+            cur.execute(query, (nombre, nit, direccion))
+            nuevo = cur.fetchone()
+            return jsonify(nuevo), 201
+    except Exception as e:
+        return jsonify({"error": "Error al crear cliente", "detalle": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
