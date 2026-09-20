@@ -40,7 +40,7 @@
       <div class="col-md-3 mb-3">
         <div class="card shadow-sm border-danger h-100">
           <div class="card-body">
-            <h6 class="card-title text-danger">Stock Bajo (&lt; 5)</h6>
+            <h6 class="card-title text-danger">Stock Bajo (&lt; 10)</h6>
             <p class="display-6 fw-bold">{{ stats.stockBajo }}</p>
           </div>
         </div>
@@ -51,7 +51,7 @@
     <div v-if="productosStockBajo.length > 0" class="alert alert-warning shadow-sm">
       <h5 class="alert-heading">⚠️ Alerta de Stock Crítico</h5>
       <ul class="mb-0">
-        <li v-for="p in productosStockBajo" :key="p.id">
+        <li v-for="p in productosStockBajo" :key="p.sku">
           <strong>{{ p.nombre }}</strong> (SKU: {{ p.sku }}) - Quedan únicamente <strong>{{ p.stock }}</strong> unidades.
         </li>
       </ul>
@@ -81,25 +81,16 @@ export default {
     this.cargarMetricas()
   },
   methods: {
-    async cargarMetricas() {
+        async cargarMetricas() {
       try {
-        const res = await api.get('/productos')
-        const productos = res.data
+        const res = await api.get('/reportes/dashboard')
+        const d = res.data
 
-        if (Array.isArray(productos)) {
-          this.stats.totalProductos = productos.length
-          
-          // Cálculo del valor total en Quetzales (precio * stock)
-          this.stats.valorInventario = productos.reduce((acc, p) => acc + (Number(p.precio) * Number(p.stock)), 0)
-          
-          // Conteo de productos con stock menor a 5
-          const criticos = productos.filter(p => p.stock < 5)
-          this.stats.stockBajo = criticos.length
-          this.productosStockBajo = criticos
-
-          // Simulación de pedidos del día (puedes conectarlo a un endpoint de pedidos si lo tienes)
-          this.stats.pedidosDelDia = 3 
-        }
+        this.stats.totalProductos = d.total_productos
+        this.stats.valorInventario = d.valor_inventario
+        this.stats.pedidosDelDia = d.pedidos_hoy
+        this.stats.stockBajo = d.stock_bajo.length
+        this.productosStockBajo = d.stock_bajo
 
         this.backendStatus = 'Conectado'
         this.backendStatusClass = 'text-success'

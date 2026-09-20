@@ -95,6 +95,17 @@ def descontar_stock():
     if not items:
         return jsonify({"error": "items_requeridos"}), 400
 
+    # Un pedido puede traer el mismo SKU en varios renglones. Se consolidan antes
+    # de validar: si no, cada renglón se compara contra el mismo stock inicial y
+    # entre todos alcanzan a descontar más de lo que hay.
+    solicitado_por_sku = {}
+    for item in items:
+        sku = item.get("sku")
+        cantidad = int(item.get("cantidad", 0))
+        if not sku or cantidad <= 0:
+            return jsonify({"error": "item_invalido", "detalle": item}), 400
+        solicitado_por_sku[sku] = solicitado_por_sku.get(sku, 0) + cantidad
+
     detalle_faltante = []
     productos_a_descontar = []
     total_pedido = 0.0
@@ -103,9 +114,7 @@ def descontar_stock():
     with db.get_connection() as conn:
         try:
             with conn.cursor() as cur:
-                for item in items:
-                    sku = item.get("sku")
-                    cantidad = int(item.get("cantidad", 0))
+                for sku, cantidad in solicitado_por_sku.items():
 
                     # Bloqueo de fila exclusivo durante la transacción
                     cur.execute("""
@@ -143,9 +152,11 @@ def descontar_stock():
 
                 # Si todo está en orden, descontar y registrar movimientos
                 for p in productos_a_descontar:
+                    # Descuento relativo, no absoluto: así el CHECK (stock >= 0) de
+                    # la tabla funciona como última defensa si algo se escapa.
                     cur.execute(
-                        "UPDATE productos SET stock = %s, actualizado_en = NOW() WHERE id = %s;",
-                        (p["nuevo_stock"], p["id"])
+                        "UPDATE productos SET stock = stock - %s, actualizado_en = NOW() WHERE id = %s;",
+                        (p["cantidad"], p["id"])
                     )
                     cur.execute("""
                         INSERT INTO movimientos_stock (producto_id, tipo, cantidad, carne)

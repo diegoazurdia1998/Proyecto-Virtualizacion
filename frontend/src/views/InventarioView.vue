@@ -104,7 +104,7 @@ export default {
   methods: {
     async cargarProductos() {
       try {
-        const res = await api.get('/productos')
+        const res = await api.get('/inventario/productos')
         this.productos = res.data
       } catch (err) {
         console.error('Error cargando inventario:', err)
@@ -126,9 +126,9 @@ export default {
     async guardarProducto() {
       try {
         if (this.editando) {
-          await api.put(`/productos/${this.form.id}`, this.form)
+          await api.put(`/inventario/productos/${this.form.id}`, this.form)
         } else {
-          await api.post('/productos', this.form)
+          await api.post('/inventario/productos', this.form)
         }
         this.cerrarModal()
         this.cargarProductos()
@@ -139,7 +139,7 @@ export default {
     async eliminarProducto(id) {
       if (confirm('¿Estás seguro de eliminar este producto?')) {
         try {
-          await api.delete(`/productos/${id}`)
+        await api.delete(`/inventario/productos/${id}`)
           this.cargarProductos()
         } catch (err) {
           console.error('Error al eliminar:', err)
