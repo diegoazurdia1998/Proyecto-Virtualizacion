@@ -3,8 +3,7 @@
 Equipo **Virtual Insanity** · Virtualización · Ingeniería en Informática y Sistemas · URL
 
 Acuerdos cerrados en la reunión inicial. Todo lo que está aquí es fijo: si algo cambia,
-se cambia primero en este archivo y se avisa al grupo. Lo marcado como `PENDIENTE` se
-confirma en la reunión.
+se cambia primero en este archivo y se avisa al grupo.
 
 ---
 
@@ -14,9 +13,9 @@ confirma en la reunión.
 |---|---|
 | Nombre del equipo | Virtual Insanity |
 | Hostname de la VM | `srv-elquetzal-virtualinsanity` |
-| Namespace en Docker Hub | `virtualinsanity` (verificar que esté libre) |
+| Namespace en Docker Hub | `virtual4insanity` |
 | Repositorio | https://github.com/diegoazurdia1998/Proyecto-Virtualizacion |
-| Etiqueta de imágenes | `virtualinsanity/elquetzal-<servicio>:v1` |
+| Etiqueta de imágenes | `virtual4insanity/elquetzal-<servicio>:1.0` |
 
 ## 2. Integrantes y roles
 
@@ -25,14 +24,11 @@ cada pedido.
 
 | Nombre | Carné | Rol |
 |---|---|---|
-| Oscar Javier Ortíz Pocón | 1182222 | Datos y Persistencia |
-| Diego Andrés Azurdia Ortíz | 2528119 | Backend de Dominio |
-| Diego Oswaldo Orellana Morales | 1163722 | PENDIENTE |
-| Susana Paola García García | 1224323 | PENDIENTE |
-| Rochelle Giulianne Esquivel Vargas | 1283220 | PENDIENTE |
-
-Roles por repartir: Infraestructura y Gateway · Backend de dominio · Frontend Vue ·
-Orquestación, costos y documentación.
+| Rochelle Giulianne Esquivel Vargas | 1283220 | Infraestructura y gateway |
+| Oscar Javier Ortíz Pocón | 1182222 | Datos y persistencia |
+| Diego Andrés Azurdia Ortíz | 2528119 | Backend de dominio |
+| Diego Oswaldo Orellana Morales | 1163722 | Frontend Vue |
+| Susana Paola García García | 1224323 | Orquestación, costos y documentación |
 
 ## 3. Estructura del repositorio
 
@@ -41,10 +37,11 @@ Proyecto-Virtualizacion/
 ├── .env.example
 ├── .gitignore
 ├── CONTRATO.md
-├── docker-compose.yml
 ├── README.md
+├── docker-compose.yml
+├── docker-compose.override.yml   Publica puertos mientras no existe el gateway
 ├── backend/          catalogo/ inventario/ clientes/ pedidos/ reportes/
-├── database/         init.sql, seeds, migraciones
+├── database/         script de inicialización, esquemas y seeds
 ├── docs/             diagrama, modelo de datos, mapa de propiedad, costos, evidencias
 ├── frontend/         proyecto Vue
 └── gateway/          Dockerfile de nginx y nginx.conf, scripts de la VM
@@ -65,6 +62,11 @@ Estos nombres son los que usa nginx y los que usan los servicios entre sí. No s
 | Postgres | `db` | 5432 | no |
 
 Red interna: `elquetzal-net`. Volumen de datos: `elquetzal-pgdata`.
+
+Mientras el gateway no esté listo, el `docker-compose.override.yml` publica cada servicio al
+host para poder probarlo: inventario 5000, catálogo 5001, clientes 5002, pedidos 5003,
+reportes 5004 y Postgres 5432. Ese archivo se elimina cuando el gateway entre, y la tabla de
+arriba vuelve a ser la única verdad.
 
 ## 5. Bases de datos y usuarios
 
@@ -90,6 +92,7 @@ Todos los servicios exponen `GET /api/<servicio>/health` que responde `{"status"
 |---|---|---|
 | `GET /api/catalogo/categorias` | catálogo | Lista de categorías |
 | `GET /api/catalogo/productos` | catálogo | Catálogo de productos |
+| `GET /api/catalogo/equipo` | catálogo | Integrantes del equipo con su carné |
 | `GET /api/inventario/productos` | inventario | Lista productos con stock |
 | `POST /api/inventario/productos` | inventario | Crea producto |
 | `PUT /api/inventario/productos/<id>` | inventario | Edita producto |
@@ -99,6 +102,9 @@ Todos los servicios exponen `GET /api/<servicio>/health` que responde `{"status"
 | `POST /api/pedidos/pedidos` | pedidos | Crea pedido y descuenta stock |
 | `GET /api/pedidos/pedidos` | pedidos | Lista de pedidos con carné |
 | `GET /api/reportes/dashboard` | reportes | Métricas del dashboard |
+
+`POST /descontar-stock` de inventario es de uso interno: lo llama el servicio de pedidos por
+la red de Docker y no se expone en el gateway.
 
 ### Formato de un producto
 
@@ -128,6 +134,9 @@ Es el único endpoint que no se puede improvisar. El frontend manda:
 }
 ```
 
+El total no se envía: lo calcula el servicio con el precio que está en la base, para que el
+navegador no pueda alterarlo.
+
 Respuesta cuando el pedido se confirma (HTTP 201):
 
 ```json
@@ -155,9 +164,14 @@ no se crea:
 Regla: la validación de stock y el descuento van dentro de una sola transacción. O se
 confirma el pedido completo y se descuentan todos los productos, o no pasa nada.
 
-Decisión pendiente de la reunión: como pedidos e inventario tienen bases separadas, la
-transacción la ejecuta el servicio de **inventario** sobre `db_inventario`, y pedidos se
-la pide por HTTP. Confirmar antes de programar.
+Como pedidos e inventario tienen bases separadas, la transacción la ejecuta el servicio de
+**inventario** sobre `db_inventario`, y pedidos se la pide por HTTP. Dentro de esa
+transacción, cada producto se bloquea con `SELECT ... FOR UPDATE` y el stock se descuenta
+restando, nunca escribiendo un valor absoluto.
+
+Si un pedido trae el mismo SKU en varios renglones, las cantidades se suman antes de
+validar. De lo contrario cada renglón se compara contra el mismo stock inicial y entre
+todos alcanzan a descontar más de lo que hay.
 
 ## 8. Dashboard
 
@@ -174,7 +188,8 @@ la pide por HTTP. Confirmar antes de programar.
 }
 ```
 
-Umbral de stock bajo: menos de 10 unidades.
+Umbral de stock bajo: menos de 10 unidades. Las métricas las calcula el servicio de
+reportes consultando a inventario y a pedidos; el frontend solo las muestra.
 
 ## 9. Reglas de trabajo en el repo
 
@@ -183,5 +198,6 @@ Umbral de stock bajo: menos de 10 unidades.
 - Nadie hace push directo a `main`.
 - Pull Request hacia `develop`, con al menos un compañero que revise y apruebe.
 - Commits cortos y descriptivos, por ejemplo `feat(pedidos): valida stock antes de confirmar`.
-- Cada quien trabaja en su carpeta. Si hay que tocar la carpeta de otro, se avisa.
+- Cada quien trabaja en su carpeta. Si hay que tocar la carpeta de otro, se avisa al grupo
+  para que pueda explicar el cambio en la defensa.
 - El archivo `.env` real nunca se sube. Solo se versiona `.env.example`.
