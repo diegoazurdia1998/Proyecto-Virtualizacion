@@ -1,0 +1,13 @@
+services:
+  db:
+    ports: ["5432:5432"]
+  api-inventario:
+    ports: ["5000:5000"]
+  api-catalogo:
+    ports: ["5001:5000"]
+  api-clientes:
+    ports: ["5002:5000"]
+  api-pedidos:
+    ports: ["5003:5000"]
+  api-reportes:
+    ports: ["5004:5000"]

@@ -49,7 +49,7 @@ def create_pedido():
     # 1. Validación y descuento atómico vía HTTP al microservicio de inventario
     url_inventario = f"{Config.INVENTARIO_SERVICE_URL}/descontar-stock"
     try:
-        resp_inv = requests.post(url_inventario, json={"items": items}, timeout=10)
+        resp_inv = requests.post(url_inventario, json={"items": items, "carne": str(carne)}, timeout=10)
     except requests.exceptions.RequestException as e:
         return jsonify({"error": "servicio_inventario_no_disponible", "detalle": str(e)}), 503
 
@@ -67,7 +67,7 @@ def create_pedido():
         RETURNING id, carne, creado_en, total::float, estado;
     """
     query_detalle = """
-        INSERT INTO pedido_detalle (pedido_id, sku, cantidad, precio_unitario, subtotal)
+        INSERT INTO pedido_detalle (pedido_id, sku, nombre_producto, cantidad, precio_unitario)
         VALUES (%s, %s, %s, %s, %s);
     """
 
@@ -83,9 +83,9 @@ def create_pedido():
                     cur.execute(query_detalle, (
                         pedido_id,
                         item["sku"],
+                        item["nombre"],
                         item["cantidad"],
-                        item["precio"],
-                        item["subtotal"]
+                        item["precio"]
                     ))
 
                 conn.commit()

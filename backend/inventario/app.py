@@ -90,6 +90,7 @@ def delete_producto(prod_id):
 def descontar_stock():
     data = request.get_json() or {}
     items = data.get("items", [])
+    carne = data.get("carne")
 
     if not items:
         return jsonify({"error": "items_requeridos"}), 400
@@ -108,27 +109,28 @@ def descontar_stock():
 
                     # Bloqueo de fila exclusivo durante la transacción
                     cur.execute("""
-                        SELECT id, sku, precio::float, stock 
-                        FROM productos 
-                        WHERE sku = %s 
+                        SELECT id, sku, nombre, precio::float, stock
+                        FROM productos
+                        WHERE sku = %s
                         FOR UPDATE;
                     """, (sku,))
                     prod = cur.fetchone()
 
                     if not prod:
                         detalle_faltante.append({"sku": sku, "solicitado": cantidad, "disponible": 0})
-                    elif prod[3] < cantidad:
-                        detalle_faltante.append({"sku": sku, "solicitado": cantidad, "disponible": prod[3]})
+                    elif prod[4] < cantidad:
+                        detalle_faltante.append({"sku": sku, "solicitado": cantidad, "disponible": prod[4]})
                     else:
-                        subtotal = prod[2] * cantidad
+                        subtotal = prod[3] * cantidad
                         total_pedido += subtotal
                         productos_a_descontar.append({
                             "id": prod[0],
                             "sku": sku,
+                            "nombre": prod[2],
                             "cantidad": cantidad,
-                            "precio": prod[2],
-                            "subtotal": subtotal,
-                            "nuevo_stock": prod[3] - cantidad
+                            "precio": prod[3],
+                            "subtotal": round(subtotal, 2),
+                            "nuevo_stock": prod[4] - cantidad
                         })
 
                 # Si algún SKU no tiene stock suficiente, revertir y retornar HTTP 409
@@ -141,11 +143,14 @@ def descontar_stock():
 
                 # Si todo está en orden, descontar y registrar movimientos
                 for p in productos_a_descontar:
-                    cur.execute("UPDATE productos SET stock = %s WHERE id = %s;", (p["nuevo_stock"], p["id"]))
+                    cur.execute(
+                        "UPDATE productos SET stock = %s, actualizado_en = NOW() WHERE id = %s;",
+                        (p["nuevo_stock"], p["id"])
+                    )
                     cur.execute("""
-                        INSERT INTO movimientos_stock (producto_id, cantidad, tipo, referencia)
-                        VALUES (%s, %s, 'DESCUENTO_PEDIDO', 'Orden procesada');
-                    """, (p["id"], p["cantidad"]))
+                        INSERT INTO movimientos_stock (producto_id, tipo, cantidad, carne)
+                        VALUES (%s, 'SALIDA', %s, %s);
+                    """, (p["id"], p["cantidad"], carne))
 
                 conn.commit()
 
@@ -158,6 +163,6 @@ def descontar_stock():
         except Exception as e:
             conn.rollback()
             return jsonify({"error": "error_transaccion", "detalle": str(e)}), 500
-
+        
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
