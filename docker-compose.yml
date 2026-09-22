@@ -161,30 +161,26 @@ services:
     networks:
       - elquetzal-net
 
-  # -------------------------------------------------------------------
-  # GATEWAY NGINX + FRONTEND VUE (Rol 1 - Pendiente de entrega)
-  # -------------------------------------------------------------------
-  # Se deja preparado para cuando el Rol 1 entregue gateway/nginx.conf y gateway/Dockerfile.
-  # gateway:
-  #   build:
-  #     context: ./gateway
-  #     dockerfile: Dockerfile
-  #   image: ${DOCKERHUB_NAMESPACE:-virtual4insanity}/elquetzal-gateway:1.0
-  #   container_name: elquetzal-gateway
-  #   restart: unless-stopped
-  #   ports:
-  #     - "${GATEWAY_PUERTO_HOST:-8080}:80"
-  #   environment:
-  #     - HOSTNAME_VM=${HOSTNAME_VM}
-  #   depends_on:
-  #     - api-catalogo
-  #     - api-inventario
-  #     - api-clientes
-  #     - api-pedidos
-  #     - api-reportes
-  #   networks:
-  #     - elquetzal-net
-
+# GATEWAY NGINX -CONF
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    image: ${DOCKERHUB_NAMESPACE:-virtual4insanity}/elquetzal-gateway:1.0
+    container_name: elquetzal-gateway
+    restart: unless-stopped
+    ports:
+      - "${GATEWAY_PUERTO_HOST:-8080}:80"
+    environment:
+      - HOSTNAME_VM=${HOSTNAME_VM}
+    depends_on:
+      - api-catalogo
+      - api-inventario
+      - api-clientes
+      - api-pedidos
+      - api-reportes
+    networks:
+      - elquetzal-net
 networks:
   elquetzal-net:
     name: elquetzal-net
