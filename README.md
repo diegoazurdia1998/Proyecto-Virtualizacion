@@ -168,6 +168,17 @@ Proyecto-Virtualizacion/
 | Namespace en Docker Hub | `virtual4insanity` |
 | Etiqueta de las imágenes | `virtual4insanity/elquetzal-<servicio>:1.0` |
 
+### Imágenes oficiales publicadas en Docker Hub
+
+Las 6 imágenes oficiales del proyecto están construidas y publicadas en Docker Hub bajo el namespace `virtual4insanity` con la etiqueta `:1.0`:
+
+- `virtual4insanity/elquetzal-gateway:1.0`
+- `virtual4insanity/elquetzal-catalogo:1.0`
+- `virtual4insanity/elquetzal-inventario:1.0`
+- `virtual4insanity/elquetzal-clientes:1.0`
+- `virtual4insanity/elquetzal-pedidos:1.0`
+- `virtual4insanity/elquetzal-reportes:1.0`
+
 ## Trabajo en el repositorio
 
 Cada quien trabaja en su propia rama y abre un Pull Request. Nadie hace push directo a `main`.
@@ -176,7 +187,5 @@ Si un cambio toca el área de otro integrante, se avisa al grupo para que pueda 
 
 ## Pendientes
 
-- Gateway nginx: `nginx.conf`, Dockerfile, build de producción del frontend y descomentar el
-  servicio en el `docker-compose.yml`.
-- Publicar las imágenes en el Docker Hub del equipo.
-- Anexo de costos y documento de arquitectura.
+- Validación final de despliegue en la máquina virtual oficial Ubuntu Server en VirtualBox.
+- Anexo de costos (CAPEX vs OPEX) y documento final de arquitectura y evidencias.
