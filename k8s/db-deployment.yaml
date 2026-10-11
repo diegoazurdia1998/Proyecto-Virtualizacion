@@ -28,9 +28,6 @@ spec:
       containers:
         - name: postgres
           image: postgres:16-alpine
-                  - name: postgres
-          image: postgres:16-alpine
-          args: ["-c", "timezone=America/Guatemala"]
           ports:
             - name: postgres
               containerPort: 5432
