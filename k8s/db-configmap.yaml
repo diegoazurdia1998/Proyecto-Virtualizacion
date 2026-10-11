@@ -1,0 +1,23 @@
+# Configuracion no sensible de PostgreSQL - El Quetzal - Equipo virtual4insanity
+# Nombres de las bases y de sus usuarios. Las contrasenas viven en el Secret elquetzal-db-secret.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elquetzal-db-config
+  namespace: proyecto-2-virtual4insanity
+  labels:
+    app: elquetzal
+    componente: db
+    equipo: virtual4insanity
+data:
+  POSTGRES_USER: postgres
+  CATALOGO_DB: db_catalogo
+  CATALOGO_DB_USER: usr_catalogo
+  INVENTARIO_DB: db_inventario
+  INVENTARIO_DB_USER: usr_inventario
+  CLIENTES_DB: db_clientes
+  CLIENTES_DB_USER: usr_clientes
+  PEDIDOS_DB: db_pedidos
+  PEDIDOS_DB_USER: usr_pedidos
+  REPORTES_DB: db_reportes
+  REPORTES_DB_USER: usr_reportes

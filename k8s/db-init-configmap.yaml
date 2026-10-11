@@ -1,0 +1,216 @@
+apiVersion: v1
+data:
+  01-crear-bases.sh: |
+    #!/bin/bash
+    # Crea una base de datos y un usuario por microservicio, aplica su esquema y sus seeds.
+    # La imagen de Postgres lo ejecuta sola la primera vez que arranca, cuando el
+    # volumen está vacío. Las claves vienen del .env, nunca del código.
+    set -e
+
+    INIT_DIR="/docker-entrypoint-initdb.d"
+
+    crear_base() {
+      local base="$1" usuario="$2" clave="$3" archivo="$4"
+
+      echo ">> Creando base $base con usuario $usuario"
+
+      psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d postgres <<EOSQL
+    CREATE USER $usuario WITH PASSWORD '$clave';
+    CREATE DATABASE $base OWNER $usuario ENCODING 'UTF8';
+    REVOKE CONNECT ON DATABASE $base FROM PUBLIC;
+    GRANT ALL PRIVILEGES ON DATABASE $base TO $usuario;
+    EOSQL
+
+      psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$base" \
+           -c "ALTER SCHEMA public OWNER TO $usuario;"
+
+      psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$base" \
+           -f "$INIT_DIR/esquemas/$archivo.sql"
+
+      if [ -f "$INIT_DIR/seeds/$archivo.sql" ]; then
+        psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$base" \
+             -f "$INIT_DIR/seeds/$archivo.sql"
+      fi
+
+      psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$base" <<EOSQL
+    GRANT ALL ON ALL TABLES IN SCHEMA public TO $usuario;
+    GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO $usuario;
+    EOSQL
+    }
+
+    crear_base "$CATALOGO_DB"   "$CATALOGO_DB_USER"   "$CATALOGO_DB_PASSWORD"   catalogo
+    crear_base "$INVENTARIO_DB" "$INVENTARIO_DB_USER" "$INVENTARIO_DB_PASSWORD" inventario
+    crear_base "$CLIENTES_DB"   "$CLIENTES_DB_USER"   "$CLIENTES_DB_PASSWORD"   clientes
+    crear_base "$PEDIDOS_DB"    "$PEDIDOS_DB_USER"    "$PEDIDOS_DB_PASSWORD"    pedidos
+    crear_base "$REPORTES_DB"   "$REPORTES_DB_USER"   "$REPORTES_DB_PASSWORD"   reportes
+
+    echo ">> Las 5 bases de El Quetzal quedaron listas."
+  esquema-catalogo.sql: |
+    -- Catálogo: fuente de verdad de las categorías y del equipo de desarrollo.
+    -- No guarda stock ni precios: eso vive en inventario.
+
+    CREATE TABLE categorias (
+        id          SERIAL PRIMARY KEY,
+        nombre      VARCHAR(60) NOT NULL UNIQUE,
+        descripcion VARCHAR(160),
+        activo      BOOLEAN NOT NULL DEFAULT TRUE,
+        creado_en   TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+
+    -- Los carnés del equipo salen de aquí hacia la UI (evidencia personalizada).
+    CREATE TABLE equipo (
+        carne  VARCHAR(10) PRIMARY KEY,
+        nombre VARCHAR(80) NOT NULL,
+        rol    VARCHAR(60) NOT NULL
+    );
+  esquema-clientes.sql: |
+    -- Clientes: las tiendas y mayoristas a los que El Quetzal despacha.
+
+    CREATE TABLE clientes (
+        id         SERIAL PRIMARY KEY,
+        nit        VARCHAR(15)  NOT NULL UNIQUE,
+        nombre     VARCHAR(100) NOT NULL,
+        direccion  VARCHAR(160),
+        telefono   VARCHAR(20),
+        email      VARCHAR(100),
+        activo     BOOLEAN      NOT NULL DEFAULT TRUE,
+        creado_por VARCHAR(10),
+        creado_en  TIMESTAMP    NOT NULL DEFAULT NOW()
+    );
+  esquema-inventario.sql: |
+    -- Inventario: dueño de los productos y del stock.
+    -- El CHECK de stock es la última línea de defensa de la regla de negocio:
+    -- aunque la aplicación falle, la base no deja que el stock quede negativo.
+
+    CREATE TABLE productos (
+        id             SERIAL PRIMARY KEY,
+        sku            VARCHAR(20)   NOT NULL UNIQUE,
+        nombre         VARCHAR(100)  NOT NULL,
+        categoria      VARCHAR(60)   NOT NULL,
+        precio         NUMERIC(10,2) NOT NULL CHECK (precio >= 0),
+        stock          INTEGER       NOT NULL DEFAULT 0 CHECK (stock >= 0),
+        stock_minimo   INTEGER       NOT NULL DEFAULT 10,
+        creado_por     VARCHAR(10),
+        creado_en      TIMESTAMP     NOT NULL DEFAULT NOW(),
+        actualizado_en TIMESTAMP     NOT NULL DEFAULT NOW()
+    );
+
+    -- Bitácora de cada entrada y salida de stock. Deja rastro de qué pedido
+    -- descontó qué producto y qué carné lo hizo.
+    CREATE TABLE movimientos_stock (
+        id          SERIAL PRIMARY KEY,
+        producto_id INTEGER     NOT NULL REFERENCES productos(id),
+        tipo        VARCHAR(10) NOT NULL CHECK (tipo IN ('ENTRADA','SALIDA','AJUSTE')),
+        cantidad    INTEGER     NOT NULL CHECK (cantidad > 0),
+        pedido_id   INTEGER,
+        carne       VARCHAR(10),
+        creado_en   TIMESTAMP   NOT NULL DEFAULT NOW()
+    );
+
+    CREATE INDEX idx_productos_categoria ON productos (categoria);
+    CREATE INDEX idx_movimientos_producto ON movimientos_stock (producto_id);
+  esquema-pedidos.sql: |
+    -- Pedidos: encabezado y detalle. El carné del integrante que lo creó es
+    -- obligatorio y queda persistido (evidencia personalizada).
+    -- cliente_id y sku no llevan llave foránea: viven en otras bases.
+
+    CREATE TABLE pedidos (
+        id         SERIAL PRIMARY KEY,
+        cliente_id INTEGER       NOT NULL,
+        carne      VARCHAR(10)   NOT NULL,
+        estado     VARCHAR(12)   NOT NULL DEFAULT 'CONFIRMADO'
+                   CHECK (estado IN ('CONFIRMADO','RECHAZADO','ANULADO')),
+        total      NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (total >= 0),
+        creado_en  TIMESTAMP     NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE pedido_detalle (
+        id              SERIAL PRIMARY KEY,
+        pedido_id       INTEGER       NOT NULL REFERENCES pedidos(id) ON DELETE CASCADE,
+        sku             VARCHAR(20)   NOT NULL,
+        nombre_producto VARCHAR(100)  NOT NULL,
+        cantidad        INTEGER       NOT NULL CHECK (cantidad > 0),
+        precio_unitario NUMERIC(10,2) NOT NULL CHECK (precio_unitario >= 0),
+        subtotal        NUMERIC(12,2) GENERATED ALWAYS AS (cantidad * precio_unitario) STORED
+    );
+
+    CREATE INDEX idx_pedidos_fecha ON pedidos (creado_en);
+    CREATE INDEX idx_pedidos_carne ON pedidos (carne);
+    CREATE INDEX idx_detalle_pedido ON pedido_detalle (pedido_id);
+  esquema-reportes.sql: |
+    -- Reportes no guarda datos de negocio: los pide por HTTP a los otros servicios.
+    -- Su base guarda el último cálculo del dashboard y la bitácora de consultas.
+
+    CREATE TABLE metricas_cache (
+        clave       VARCHAR(40) PRIMARY KEY,
+        valor       JSONB       NOT NULL,
+        generado_en TIMESTAMP   NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE bitacora_consultas (
+        id            SERIAL PRIMARY KEY,
+        reporte       VARCHAR(40) NOT NULL,
+        carne         VARCHAR(10),
+        consultado_en TIMESTAMP   NOT NULL DEFAULT NOW()
+    );
+  seed-catalogo.sql: |
+    INSERT INTO categorias (nombre, descripcion) VALUES
+        ('Abarrotes',       'Productos secos de consumo diario'),
+        ('Bebidas',         'Gaseosas, jugos y agua pura'),
+        ('Lácteos',         'Leche, queso y derivados'),
+        ('Limpieza',        'Detergentes y productos de aseo'),
+        ('Granos básicos',  'Frijol, maíz, arroz y azúcar');
+
+    -- Equipo Virtual Insanity. Estos carnés se muestran en la UI.
+    INSERT INTO equipo (carne, nombre, rol) VALUES
+        ('1283220', 'Rochelle Giulianne Esquivel Vargas', 'Infraestructura y Gateway'),
+        ('1182222', 'Oscar Javier Ortíz Pocón',           'Datos y Persistencia'),
+        ('2528119', 'Diego Andrés Azurdia Ortíz',         'Backend de Dominio'),
+        ('1163722', 'Diego Oswaldo Orellana Morales',     'Frontend Vue'),
+        ('1224323', 'Susana Paola García García',         'Orquestación, Costos y Documentación');
+  seed-clientes.sql: |
+    INSERT INTO clientes (nit, nombre, direccion, telefono, email, creado_por) VALUES
+        ('1234567-8', 'Tienda La Esperanza',      'Villa Nueva, zona 4',        '2233-4455', 'esperanza@correo.gt', '1182222'),
+        ('2345678-9', 'Abarrotería El Centavo',   'Mixco, zona 1',              '2244-5566', 'centavo@correo.gt',   '1283220'),
+        ('3456789-0', 'Super Mercadito Chapín',   'Amatitlán, centro',          '2255-6677', 'chapin@correo.gt',    '2528119'),
+        ('4567890-1', 'Distribuidora El Sur',     'Escuintla, zona 3',          '2266-7788', 'elsur@correo.gt',     '1163722'),
+        ('5678901-2', 'Tienda Doña Carmen',       'Villa Canales, aldea Chichimecas', '2277-8899', 'carmen@correo.gt', '1224323');
+  seed-inventario.sql: |
+    -- Productos de prueba. Los tres últimos quedan por debajo del stock mínimo
+    -- a propósito, para que la alerta de stock bajo del dashboard tenga qué mostrar.
+    INSERT INTO productos (sku, nombre, categoria, precio, stock, stock_minimo, creado_por) VALUES
+        ('QTZ-001', 'Café molido 500g',          'Abarrotes',      45.50, 120, 10, '1182222'),
+        ('QTZ-002', 'Aceite vegetal 1L',         'Abarrotes',      28.75,  80, 10, '1182222'),
+        ('QTZ-003', 'Gaseosa 2.5L',              'Bebidas',        18.00, 200, 20, '1283220'),
+        ('QTZ-004', 'Agua pura 1 galón',         'Bebidas',        12.50, 150, 20, '1283220'),
+        ('QTZ-005', 'Leche entera 1L',           'Lácteos',        14.25,  60, 15, '2528119'),
+        ('QTZ-006', 'Queso fresco libra',        'Lácteos',        38.00,  40, 10, '2528119'),
+        ('QTZ-007', 'Detergente en polvo 1kg',   'Limpieza',       32.90,  75, 10, '1163722'),
+        ('QTZ-008', 'Jabón de lavar trastos',    'Limpieza',        9.75, 110, 15, '1163722'),
+        ('QTZ-009', 'Frijol negro quintal',      'Granos básicos', 610.00,  25,  5, '1224323'),
+        ('QTZ-010', 'Arroz blanco quintal',      'Granos básicos', 480.00,  30,  5, '1224323'),
+        ('QTZ-011', 'Azúcar blanca 5 libras',    'Granos básicos',  42.00,   6, 10, '1182222'),
+        ('QTZ-012', 'Maíz blanco quintal',       'Granos básicos', 395.00,   3,  5, '1182222');
+
+    INSERT INTO movimientos_stock (producto_id, tipo, cantidad, carne) VALUES
+        (1,  'ENTRADA', 120, '1182222'),
+        (11, 'ENTRADA',   6, '1182222'),
+        (12, 'ENTRADA',   3, '1182222');
+  seed-pedidos.sql: |
+    -- Dos pedidos de ejemplo con fecha de hoy, para que el dashboard muestre
+    -- "pedidos del día" desde el primer arranque.
+    INSERT INTO pedidos (cliente_id, carne, estado, total) VALUES
+        (1, '1182222', 'CONFIRMADO', 227.50),
+        (3, '2528119', 'CONFIRMADO', 189.75);
+
+    INSERT INTO pedido_detalle (pedido_id, sku, nombre_producto, cantidad, precio_unitario) VALUES
+        (1, 'QTZ-001', 'Café molido 500g',        5, 45.50),
+        (2, 'QTZ-003', 'Gaseosa 2.5L',           10, 18.00),
+        (2, 'QTZ-008', 'Jabón de lavar trastos',  1,  9.75);
+kind: ConfigMap
+metadata:
+  labels:
+    app: elquetzal
+    equipo: virtual4insanity
+  name: elquetzal-db-init
+  namespace: proyecto-2-virtual4insanity

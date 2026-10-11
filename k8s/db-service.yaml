@@ -1,0 +1,20 @@
+# Service interno de la base de datos - El Quetzal - Equipo virtual4insanity
+# Da el nombre DNS "db" dentro del namespace, igual que en Docker Compose.
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+  namespace: proyecto-2-virtual4insanity
+  labels:
+    app: elquetzal
+    componente: db
+    equipo: virtual4insanity
+spec:
+  type: ClusterIP
+  selector:
+    app: elquetzal
+    componente: db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
