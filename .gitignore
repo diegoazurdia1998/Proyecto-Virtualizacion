@@ -26,3 +26,6 @@ Thumbs.db
 # Editores
 .vscode/
 .idea/
+
+# Secret real de Kubernetes: nunca va al repo
+k8s/db-secret.yaml

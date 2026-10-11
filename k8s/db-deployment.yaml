@@ -1,0 +1,93 @@
+# Base de datos PostgreSQL - El Quetzal - Equipo virtual4insanity
+# Mismo motor del Proyecto 1 (postgres:16-alpine). Los datos viven en el PVC elquetzal-pgdata
+# y los scripts de inicio vienen del ConfigMap elquetzal-db-init.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elquetzal-db
+  namespace: proyecto-2-virtual4insanity
+  labels:
+    app: elquetzal
+    componente: db
+    equipo: virtual4insanity
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: elquetzal
+      componente: db
+  template:
+    metadata:
+      labels:
+        app: elquetzal
+        componente: db
+        equipo: virtual4insanity
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          args: ["-c", "timezone=America/Guatemala"]
+          ports:
+            - name: postgres
+              containerPort: 5432
+          envFrom:
+            - configMapRef:
+                name: elquetzal-db-config
+            - secretRef:
+                name: elquetzal-db-secret
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: datos
+              mountPath: /var/lib/postgresql/data
+            - name: scripts-inicio
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\""]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\""]
+            initialDelaySeconds: 60
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+      volumes:
+        - name: datos
+          persistentVolumeClaim:
+            claimName: elquetzal-pgdata
+        - name: scripts-inicio
+          configMap:
+            name: elquetzal-db-init
+            defaultMode: 0755
+            items:
+              - key: 01-crear-bases.sh
+                path: 01-crear-bases.sh
+              - key: esquema-catalogo.sql
+                path: esquemas/catalogo.sql
+              - key: esquema-inventario.sql
+                path: esquemas/inventario.sql
+              - key: esquema-clientes.sql
+                path: esquemas/clientes.sql
+              - key: esquema-pedidos.sql
+                path: esquemas/pedidos.sql
+              - key: esquema-reportes.sql
+                path: esquemas/reportes.sql
+              - key: seed-catalogo.sql
+                path: seeds/catalogo.sql
+              - key: seed-inventario.sql
+                path: seeds/inventario.sql
+              - key: seed-clientes.sql
+                path: seeds/clientes.sql
+              - key: seed-pedidos.sql
+                path: seeds/pedidos.sql
