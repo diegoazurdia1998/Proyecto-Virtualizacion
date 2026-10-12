@@ -46,7 +46,21 @@ def create_pedido():
     if not carne or not cliente_id or not items:
         return jsonify({"error": "datos_incompletos", "mensaje": "carne, cliente_id e items son obligatorios"}), 400
 
-    # 1. Validación y descuento atómico vía HTTP al microservicio de inventario
+        # 1. Validación de cliente existente contra api-clientes vía HTTP
+    try:
+        resp_cli = requests.get(f"{Config.CLIENTES_SERVICE_URL}/clientes", timeout=5)
+        if resp_cli.status_code == 200:
+            clientes = resp_cli.json()
+            ids_validos = [c["id"] for c in clientes]
+            if cliente_id not in ids_validos:
+                return jsonify({"error": "cliente_no_valido",
+                                "mensaje": f"El cliente {cliente_id} no existe en el sistema"}), 400
+        else:
+            return jsonify({"error": "error_verificacion_cliente"}), 502
+    except requests.exceptions.RequestException as e:
+        return jsonify({"error": "servicio_clientes_no_disponible", "detalle": str(e)}), 503
+
+    # 2. Validación y descuento atómico vía HTTP al microservicio de inventario
     url_inventario = f"{Config.INVENTARIO_SERVICE_URL}/descontar-stock"
     try:
         resp_inv = requests.post(url_inventario, json={"items": items, "carne": str(carne)}, timeout=10)
@@ -60,7 +74,7 @@ def create_pedido():
     total_pedido = datos_inventario.get("total", 0.0)
     items_procesados = datos_inventario.get("items_procesados", [])
 
-    # 2. Insertar cabecera usando creado_en (DEFAULT NOW())
+    # 3. Insertar cabecera usando creado_en (DEFAULT NOW())
     query_pedido = """
         INSERT INTO pedidos (carne, cliente_id, total, estado)
         VALUES (%s, %s, %s, 'CONFIRMADO')

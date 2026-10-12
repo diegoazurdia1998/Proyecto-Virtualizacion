@@ -7,3 +7,4 @@ class Config:
     DB_USER = os.getenv("DB_USER", "usr_pedidos")
     DB_PASSWORD = os.getenv("DB_PASSWORD", "ped_pass123")
     INVENTARIO_SERVICE_URL = os.getenv("INVENTARIO_SERVICE_URL", "http://api-inventario:5000")
+    CLIENTES_SERVICE_URL = os.getenv("CLIENTES_SERVICE_URL", "http://api-clientes:5000")

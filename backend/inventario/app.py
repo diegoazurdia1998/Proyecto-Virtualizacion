@@ -38,6 +38,21 @@ def create_producto():
     if not all([sku, nombre, categoria, precio is not None, stock is not None]):
         return jsonify({"error": "campos_incompletos"}), 400
 
+    # Validación de regla de negocio de precio mínimo
+    try:
+        precio_val = float(precio)
+        if precio_val < 1.00:
+            return jsonify({
+                "error": "precio_invalido",
+                "mensaje": "El precio del producto debe ser mayor o igual a Q 1.00"
+            }), 400
+    except (ValueError, TypeError):
+        return jsonify({"error": "precio_invalido", "mensaje": "El formato del precio no es válido"}), 400
+
+    # Validación de stock no negativo
+    if int(stock) < 0:
+        return jsonify({"error": "stock_invalido", "mensaje": "El stock no puede ser negativo"}), 400
+
     query = """
         INSERT INTO productos (sku, nombre, categoria, precio, stock)
         VALUES (%s, %s, %s, %s, %s)
@@ -53,6 +68,42 @@ def create_producto():
 @app.route('/productos/<int:prod_id>', methods=['PUT'])
 def update_producto(prod_id):
     data = request.get_json() or {}
+
+    nombre = data.get("nombre")
+    categoria = data.get("categoria")
+    precio = data.get("precio")
+    stock = data.get("stock")
+
+    # 1. Validación de precio si viene en la petición
+    if precio is not None:
+        try:
+            precio_val = float(precio)
+            if precio_val < 1.00:
+                return jsonify({
+                    "error": "precio_invalido",
+                    "mensaje": "El precio debe ser mayor o igual a Q 1.00"
+                }), 400
+        except (ValueError, TypeError):
+            return jsonify({
+                "error": "precio_invalido",
+                "mensaje": "El formato del precio no es válido"
+            }), 400
+
+    # 2. Validación de stock si viene en la petición
+    if stock is not None:
+        try:
+            stock_val = int(stock)
+            if stock_val < 0:
+                return jsonify({
+                    "error": "stock_invalido",
+                    "mensaje": "El stock no puede ser negativo"
+                }), 400
+        except (ValueError, TypeError):
+            return jsonify({
+                "error": "stock_invalido",
+                "mensaje": "El formato del stock no es válido"
+            }), 400
+
     query = """
         UPDATE productos 
         SET nombre = COALESCE(%s, nombre),
@@ -64,24 +115,36 @@ def update_producto(prod_id):
     """
     try:
         with db.get_cursor(commit=True) as cur:
-            cur.execute(query, (data.get("nombre"), data.get("categoria"), data.get("precio"), data.get("stock"), prod_id))
+            cur.execute(query, (nombre, categoria, precio, stock, prod_id))
             actualizado = cur.fetchone()
             if not actualizado:
                 return jsonify({"error": "producto_no_encontrado"}), 404
             return jsonify(actualizado), 200
     except Exception as e:
         return jsonify({"error": "error_db", "detalle": str(e)}), 500
-
 @app.route('/productos/<int:prod_id>', methods=['DELETE'])
 def delete_producto(prod_id):
-    query = "DELETE FROM productos WHERE id = %s RETURNING id;"
     try:
+        with db.get_cursor() as cur:
+            # 1. Verificar si tiene pedidos o movimientos asociados
+            cur.execute("SELECT COUNT(*) FROM movimientos_stock WHERE producto_id = %s;", (prod_id,))
+            conteo = cur.fetchone()
+            total_movimientos = conteo[0] if isinstance(conteo, tuple) else conteo.get('count', 0)
+
+            if total_movimientos > 0:
+                return jsonify({
+                    "error": "producto_con_historial",
+                    "mensaje": "No se puede eliminar el producto porque tiene pedidos o movimientos de stock registrados."
+                }), 409
+
+        # 2. Si no tiene historial, proceder con la eliminación
         with db.get_cursor(commit=True) as cur:
-            cur.execute(query, (prod_id,))
+            cur.execute("DELETE FROM productos WHERE id = %s RETURNING id;", (prod_id,))
             eliminado = cur.fetchone()
             if not eliminado:
                 return jsonify({"error": "producto_no_encontrado"}), 404
             return jsonify({"status": "deleted", "id": prod_id}), 200
+
     except Exception as e:
         return jsonify({"error": "error_db", "detalle": str(e)}), 500
 
