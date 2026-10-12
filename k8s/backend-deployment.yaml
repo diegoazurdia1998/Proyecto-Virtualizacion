@@ -1,0 +1,303 @@
+# ==============================================================================
+# DEPLOYMENT: API CATÁLOGO
+# ==============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-catalogo
+  namespace: proyecto-2-virtual4insanity
+  labels:
+    app: elquetzal
+    componente: api-catalogo
+    equipo: virtualinsanity
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elquetzal
+      componente: api-catalogo
+  template:
+    metadata:
+      labels:
+        app: elquetzal
+        componente: api-catalogo
+    spec:
+      containers:
+      - name: api-catalogo
+        image: virtual4insanity/elquetzal-catalogo:1.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5000
+        env:
+        - name: DB_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: elquetzal-backend-config
+              key: DB_HOST
+        - name: DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: elquetzal-backend-config
+              key: DB_PORT
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: elquetzal-backend-config
+              key: CATALOGO_DB
+        - name: DB_USER
+          valueFrom:
+            configMapKeyRef:
+              name: elquetzal-backend-config
+              key: CATALOGO_DB_USER
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: elquetzal-db-secret
+              key: CATALOGO_DB_PASSWORD
+
+---
+# ==============================================================================
+# DEPLOYMENT: API INVENTARIO
+# ==============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-inventario
+  namespace: proyecto-2-virtual4insanity
+  labels:
+    app: elquetzal
+    componente: api-inventario
+    equipo: virtualinsanity
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elquetzal
+      componente: api-inventario
+  template:
+    metadata:
+      labels:
+        app: elquetzal
+        componente: api-inventario
+    spec:
+      containers:
+      - name: api-inventario
+        image: virtual4insanity/elquetzal-inventario:1.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5000
+        env:
+        - name: DB_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: elquetzal-backend-config
+              key: DB_HOST
+        - name: DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: elquetzal-backend-config
+              key: DB_PORT
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: elquetzal-backend-config
+              key: INVENTARIO_DB
+        - name: DB_USER
+          valueFrom:
+            configMapKeyRef:
+              name: elquetzal-backend-config
+              key: INVENTARIO_DB_USER
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: elquetzal-db-secret
+              key: INVENTARIO_DB_PASSWORD
+
+---
+# ==============================================================================
+# DEPLOYMENT: API CLIENTES
+# ==============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-clientes
+  namespace: proyecto-2-virtual4insanity
+  labels:
+    app: elquetzal
+    componente: api-clientes
+    equipo: virtualinsanity
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elquetzal
+      componente: api-clientes
+  template:
+    metadata:
+      labels:
+        app: elquetzal
+        componente: api-clientes
+    spec:
+      containers:
+      - name: api-clientes
+        image: virtual4insanity/elquetzal-clientes:1.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5000
+        env:
+        - name: DB_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: elquetzal-backend-config
+              key: DB_HOST
+        - name: DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: elquetzal-backend-config
+              key: DB_PORT
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: elquetzal-backend-config
+              key: CLIENTES_DB
+        - name: DB_USER
+          valueFrom:
+            configMapKeyRef:
+              name: elquetzal-backend-config
+              key: CLIENTES_DB_USER
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: elquetzal-db-secret
+              key: CLIENTES_DB_PASSWORD
+
+---
+# ==============================================================================
+# DEPLOYMENT: API PEDIDOS
+# ==============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-pedidos
+  namespace: proyecto-2-virtual4insanity
+  labels:
+    app: elquetzal
+    componente: api-pedidos
+    equipo: virtualinsanity
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elquetzal
+      componente: api-pedidos
+  template:
+    metadata:
+      labels:
+        app: elquetzal
+        componente: api-pedidos
+    spec:
+      containers:
+      - name: api-pedidos
+        image: virtual4insanity/elquetzal-pedidos:1.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5000
+        env:
+        - name: DB_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: elquetzal-backend-config
+              key: DB_HOST
+        - name: DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: elquetzal-backend-config
+              key: DB_PORT
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: elquetzal-backend-config
+              key: PEDIDOS_DB
+        - name: DB_USER
+          valueFrom:
+            configMapKeyRef:
+              name: elquetzal-backend-config
+              key: PEDIDOS_DB_USER
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: elquetzal-db-secret
+              key: PEDIDOS_DB_PASSWORD
+        - name: INVENTARIO_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: elquetzal-backend-config
+              key: INVENTARIO_SERVICE_URL
+
+---
+# ==============================================================================
+# DEPLOYMENT: API REPORTES
+# ==============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-reportes
+  namespace: proyecto-2-virtual4insanity
+  labels:
+    app: elquetzal
+    componente: api-reportes
+    equipo: virtualinsanity
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elquetzal
+      componente: api-reportes
+  template:
+    metadata:
+      labels:
+        app: elquetzal
+        componente: api-reportes
+    spec:
+      containers:
+      - name: api-reportes
+        image: virtual4insanity/elquetzal-reportes:1.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5000
+        env:
+        - name: DB_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: elquetzal-backend-config
+              key: DB_HOST
+        - name: DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: elquetzal-backend-config
+              key: DB_PORT
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: elquetzal-backend-config
+              key: REPORTES_DB
+        - name: DB_USER
+          valueFrom:
+            configMapKeyRef:
+              name: elquetzal-backend-config
+              key: REPORTES_DB_USER
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: elquetzal-db-secret
+              key: REPORTES_DB_PASSWORD
+        - name: INVENTARIO_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: elquetzal-backend-config
+              key: INVENTARIO_SERVICE_URL
+        - name: PEDIDOS_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: elquetzal-backend-config
+              key: PEDIDOS_SERVICE_URL
