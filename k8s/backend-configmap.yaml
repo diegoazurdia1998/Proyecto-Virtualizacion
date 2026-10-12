@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elquetzal-backend-config
+  namespace: proyecto-2-virtual4insanity
+  labels:
+    app: elquetzal
+    equipo: virtualinsanity
+data:
+  # Host y puerto del Service de BD (DNS interno db:5432)
+  DB_HOST: "db"
+  DB_PORT: "5432"
+
+  # Nombres de bases de datos
+  CATALOGO_DB: "db_catalogo"
+  CATALOGO_DB_USER: "usr_catalogo"
+
+  INVENTARIO_DB: "db_inventario"
+  INVENTARIO_DB_USER: "usr_inventario"
+
+  CLIENTES_DB: "db_clientes"
+  CLIENTES_DB_USER: "usr_clientes"
+
+  PEDIDOS_DB: "db_pedidos"
+  PEDIDOS_DB_USER: "usr_pedidos"
+
+  REPORTES_DB: "db_reportes"
+  REPORTES_DB_USER: "usr_reportes"
+
+  # Nombres DNS de los Services de backend para llamadas internas HTTP
+  INVENTARIO_SERVICE_URL: "http://api-inventario:5000"
+  PEDIDOS_SERVICE_URL: "http://api-pedidos:5000"
+
+  # Variables de entorno de la aplicación
+  FLASK_ENV: "production"
+  UMBRAL_STOCK_BAJO: "10"
