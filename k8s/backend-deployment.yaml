@@ -11,7 +11,7 @@ metadata:
     componente: api-catalogo
     equipo: virtualinsanity
 spec:
-  replicas: 1
+  replicas: 1 # <-----------------------------------------------------replicas
   selector:
     matchLabels:
       app: elquetzal
