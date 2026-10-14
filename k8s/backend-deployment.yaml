@@ -82,7 +82,7 @@ spec:
     spec:
       containers:
       - name: api-inventario
-        image: virtual4insanity/elquetzal-inventario:2.1
+        image: virtual4insanity/elquetzal-inventario:2.0
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 5000
@@ -198,7 +198,7 @@ spec:
     spec:
       containers:
       - name: api-pedidos
-        image: virtual4insanity/elquetzal-pedidos:2.0
+        image: virtual4insanity/elquetzal-pedidos:2.1
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 5000
