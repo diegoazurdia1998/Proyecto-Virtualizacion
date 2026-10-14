@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
       - name: api-catalogo
-        image: virtual4insanity/elquetzal-catalogo:1.0
+        image: virtual4insanity/elquetzal-catalogo:1.1
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 5000
