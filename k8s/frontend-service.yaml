@@ -1,0 +1,20 @@
+# Service interno del frontend - El Quetzal - Equipo virtual4insanity (Rol 4)
+# ClusterIP: solo accesible dentro del clúster. El gateway lo usa por su nombre DNS "frontend".
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: proyecto-2-virtual4insanity
+  labels:
+    app: elquetzal
+    componente: frontend
+    equipo: virtual4insanity
+spec:
+  type: ClusterIP
+  selector:
+    app: elquetzal
+    componente: frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
