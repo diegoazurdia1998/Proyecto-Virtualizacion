@@ -1,0 +1,49 @@
+# Gateway (nginx + frontend Vue ya compilado) - El Quetzal - Equipo virtual4insanity (Rol 1)
+# La imagen es la misma del Proyecto 1: sirve el frontend en "/" y enruta /api/<servicio>/
+# a los Services api-<servicio>:5000 por DNS interno de Kubernetes.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: proyecto-2-virtual4insanity
+  labels:
+    app: elquetzal
+    componente: gateway
+    equipo: virtual4insanity
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elquetzal
+      componente: gateway
+  template:
+    metadata:
+      labels:
+        app: elquetzal
+        componente: gateway
+    spec:
+      containers:
+        - name: gateway
+          image: virtual4insanity/elquetzal-gateway:1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 128Mi
