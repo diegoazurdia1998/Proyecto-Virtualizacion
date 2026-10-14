@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: virtual4insanity/elquetzal-frontend:2.1
+          image: virtual4insanity/elquetzal-frontend:2.2
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
