@@ -5,7 +5,7 @@ metadata:
   namespace: proyecto-2-virtual4insanity
   labels:
     app: elquetzal
-    equipo: virtualinsanity
+    equipo: virtual4insanity
 data:
   # Host y puerto del Service de BD (DNS interno db:5432)
   DB_HOST: "db"
@@ -30,6 +30,8 @@ data:
   # Nombres DNS de los Services de backend para llamadas internas HTTP
   INVENTARIO_SERVICE_URL: "http://api-inventario:5000"
   PEDIDOS_SERVICE_URL: "http://api-pedidos:5000"
+  CLIENTES_SERVICE_URL: "http://api-clientes:5000"
+  CATALOGO_SERVICE_URL: "http://api-catalogo:5000"
 
   # Variables de entorno de la aplicación
   FLASK_ENV: "production"

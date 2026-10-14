@@ -13,13 +13,12 @@
             <form @submit.prevent="registrarPedido">
               <div class="mb-3">
                 <label class="form-label">Carné del Integrante</label>
-                <input 
-                  type="text" 
-                  class="form-control" 
-                  v-model="pedidoForm.carne" 
-                  placeholder="Ej. 0900-XX-XXXX" 
-                  required 
-                />
+                <select class="form-select" v-model="pedidoForm.carne" required>
+                  <option value="" disabled>-- Elige tu carné --</option>
+                  <option v-for="m in equipo" :key="m.carne" :value="m.carne">
+                    {{ m.carne }} - {{ m.nombre }}
+                  </option>
+                </select>
               </div>
 
               <div class="mb-3">
@@ -99,6 +98,7 @@
                 <tr>
                   <th>ID</th>
                   <th>Carné</th>
+                  <th>Productos</th>
                   <th>Total (Q)</th>
                   <th>Estado</th>
                 </tr>
@@ -107,11 +107,12 @@
                 <tr v-for="ped in listaPedidos" :key="ped.pedido_id">
                   <td>#{{ ped.pedido_id }}</td>
                   <td><code>{{ ped.carne }}</code></td>
+                  <td class="small">{{ ped.productos }}</td>
                   <td>Q {{ Number(ped.total).toFixed(2) }}</td>
                   <td><span class="badge bg-success">{{ ped.estado }}</span></td>
                 </tr>
                 <tr v-if="listaPedidos.length === 0">
-                  <td colspan="4" class="text-center text-muted">No hay pedidos registrados aún.</td>
+                  <td colspan="5" class="text-center text-muted">No hay pedidos registrados aún.</td>
                 </tr>
               </tbody>
             </table>
@@ -131,6 +132,7 @@ export default {
     return {
       productos: [],
       clientes: [],
+      equipo: [],
       productoSeleccionado: '',
       cantidadSeleccionada: 1,
       detallePedido: [],
@@ -146,6 +148,7 @@ export default {
   mounted() {
     this.cargarProductos()
     this.cargarClientes()
+    this.cargarEquipo()
     this.cargarPedidos()
   },
   methods: {
@@ -163,6 +166,14 @@ export default {
         this.clientes = res.data
       } catch (err) {
         console.error('Error al cargar clientes:', err)
+      }
+    },
+    async cargarEquipo() {
+      try {
+        const res = await api.get('/catalogo/equipo')
+        this.equipo = res.data
+      } catch (err) {
+        console.error('Error al cargar el equipo:', err)
       }
     },
     async cargarPedidos() {
@@ -240,7 +251,7 @@ export default {
             .join(' · ')
           this.errorStock = `Pedido rechazado por stock insuficiente. ${faltantes}`
         } else {
-          this.errorStock = 'No se pudo registrar el pedido. Revise la consola para el detalle.'
+          this.errorStock = (data && data.mensaje) ? data.mensaje : 'No se pudo registrar el pedido. Revise la consola para el detalle.'
         }
         console.error('Error al procesar el pedido:', err)
       }

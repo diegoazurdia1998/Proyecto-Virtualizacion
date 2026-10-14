@@ -134,15 +134,17 @@ export default {
         this.cargarProductos()
       } catch (err) {
         console.error('Error al guardar producto:', err)
+        alert(err.response?.data?.mensaje || 'No se pudo guardar el producto.')
       }
     },
     async eliminarProducto(id) {
       if (confirm('¿Estás seguro de eliminar este producto?')) {
         try {
-        await api.delete(`/inventario/productos/${id}`)
+          await api.delete(`/inventario/productos/${id}`)
           this.cargarProductos()
         } catch (err) {
           console.error('Error al eliminar:', err)
+          alert(err.response?.data?.mensaje || 'No se pudo eliminar el producto.')
         }
       }
     }

@@ -20,9 +20,13 @@ def health():
 def get_pedidos():
     # Usamos creado_en AS fecha para respetar el contrato JSON
     query = """
-        SELECT id AS pedido_id, carne, cliente_id, creado_en AS fecha, total::float, estado 
-        FROM pedidos 
-        ORDER BY id DESC;
+        SELECT p.id AS pedido_id, p.carne, p.cliente_id, p.creado_en AS fecha,
+               p.total::float AS total, p.estado,
+               COALESCE(string_agg(d.nombre_producto || ' x' || d.cantidad, ', ' ORDER BY d.id), '') AS productos
+        FROM pedidos p
+        LEFT JOIN pedido_detalle d ON d.pedido_id = p.id
+        GROUP BY p.id
+        ORDER BY p.id DESC;
     """
     try:
         with db.get_cursor() as cur:
@@ -45,6 +49,18 @@ def create_pedido():
 
     if not carne or not cliente_id or not items:
         return jsonify({"error": "datos_incompletos", "mensaje": "carne, cliente_id e items son obligatorios"}), 400
+
+    # 0. Validación del carné contra los integrantes del equipo (api-catalogo /equipo)
+    try:
+        resp_eq = requests.get(f"{Config.CATALOGO_SERVICE_URL}/equipo", timeout=5)
+        if resp_eq.status_code != 200:
+            return jsonify({"error": "error_verificacion_carne"}), 502
+        carnes_validos = [str(e["carne"]) for e in resp_eq.json()]
+        if str(carne).strip() not in carnes_validos:
+            return jsonify({"error": "carne_no_valido",
+                            "mensaje": f"El carné {carne} no pertenece a ningún integrante del equipo"}), 400
+    except requests.exceptions.RequestException as e:
+        return jsonify({"error": "servicio_catalogo_no_disponible", "detalle": str(e)}), 503
 
         # 1. Validación de cliente existente contra api-clientes vía HTTP
     try:
