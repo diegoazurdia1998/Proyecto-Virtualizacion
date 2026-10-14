@@ -33,7 +33,7 @@ def get_categorias():
 @app.route('/equipo', methods=['GET'])
 def get_equipo():
     # Consulta a la tabla equipo en db_catalogo para carnés en UI
-    query = "SELECT carne, nombre, rol FROM equipo ORDER BY carne ASC;"
+    query = "SELECT carne, nombre, rol FROM equipo ORDER BY nombre ASC;"
     try:
         with db.get_cursor() as cur:
             cur.execute(query)

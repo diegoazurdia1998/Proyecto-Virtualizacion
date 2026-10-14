@@ -1,0 +1,49 @@
+# Frontend Vue servido por nginx - El Quetzal - Equipo virtual4insanity (Rol 4)
+# Imagen propia publicada en Docker Hub. Solo sirve la interfaz; las rutas /api/ las resuelve el gateway.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elquetzal-frontend
+  namespace: proyecto-2-virtual4insanity
+  labels:
+    app: elquetzal
+    componente: frontend
+    equipo: virtual4insanity
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elquetzal
+      componente: frontend
+  template:
+    metadata:
+      labels:
+        app: elquetzal
+        componente: frontend
+        equipo: virtual4insanity
+    spec:
+      containers:
+        - name: frontend
+          image: virtual4insanity/elquetzal-frontend:2.2
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
