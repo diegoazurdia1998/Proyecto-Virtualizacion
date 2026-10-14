@@ -8,3 +8,4 @@ class Config:
     DB_PASSWORD = os.getenv("DB_PASSWORD", "ped_pass123")
     INVENTARIO_SERVICE_URL = os.getenv("INVENTARIO_SERVICE_URL", "http://api-inventario:5000")
     CLIENTES_SERVICE_URL = os.getenv("CLIENTES_SERVICE_URL", "http://api-clientes:5000")
+    CATALOGO_SERVICE_URL = os.getenv("CATALOGO_SERVICE_URL", "http://api-catalogo:5000")

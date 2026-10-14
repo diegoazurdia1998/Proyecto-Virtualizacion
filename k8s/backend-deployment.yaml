@@ -82,7 +82,7 @@ spec:
     spec:
       containers:
       - name: api-inventario
-        image: virtual4insanity/elquetzal-inventario:2.0
+        image: virtual4insanity/elquetzal-inventario:2.1
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 5000
@@ -233,6 +233,16 @@ spec:
             configMapKeyRef:
               name: elquetzal-backend-config
               key: INVENTARIO_SERVICE_URL
+        - name: CLIENTES_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: elquetzal-backend-config
+              key: CLIENTES_SERVICE_URL
+        - name: CATALOGO_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: elquetzal-backend-config
+              key: CATALOGO_SERVICE_URL
 
 ---
 # ==============================================================================
