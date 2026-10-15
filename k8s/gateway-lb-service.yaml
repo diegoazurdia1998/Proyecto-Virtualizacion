@@ -1,0 +1,20 @@
+# Service LoadBalancer del gateway - El Quetzal - Equipo virtual4insanity
+# k3s (ServiceLB) le asigna la IP de la VM: http://192.168.56.105
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway-lb
+  namespace: proyecto-2-virtual4insanity
+  labels:
+    app: elquetzal
+    componente: gateway
+    equipo: virtual4insanity
+spec:
+  type: LoadBalancer
+  selector:
+    app: elquetzal
+    componente: gateway
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80

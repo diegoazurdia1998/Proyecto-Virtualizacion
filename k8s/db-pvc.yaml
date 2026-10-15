@@ -1,3 +1,6 @@
+# Disco persistente de PostgreSQL - El Quetzal - Equipo virtual4insanity
+# Equivale al volumen nombrado elquetzal-pgdata del Proyecto 1 (Docker Compose).
+
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -10,7 +13,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: standard
+  storageClassName: local-path
   resources:
     requests:
       storage: 2Gi
